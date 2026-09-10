@@ -3,508 +3,535 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#FAFAF7" />
-<title>每日辐照度预测分析</title>
+<meta name="theme-color" content="#0B2A4A" />
+<title>辐照度会商助手</title>
 <style>
   :root{
-    --bg:#FAFAF7;
-    --surface:#FFFFFF;
-    --ink:#0A0A0A;
-    --sub:#6B7280;
+    --bg:#F4F5F7;
+    --card:#FFFFFF;
+    --ink:#111827;
+    --sub:#4B5563;
     --faint:#9CA3AF;
-    --line:#E7E5DE;
-    --line-strong:#D6D3CB;
-    --accent:#B45309;
-    --low:#1D4ED8;
-    --high:#B45309;
-    --same:#15803D;
-    --inrange:#15803D;
-    --calc:#1D4ED8;   /* 综合计算器强调色 */
-    --radius:14px;
-    --mono:"SF Mono","JetBrains Mono","Roboto Mono",ui-monospace,monospace;
+    --line:#E5E7EB;
+    --line2:#D1D5DB;
+    --accent:#2563EB;
+    --accent-d:#1D4ED8;
+    --ok:#15803D;
+    --warn:#B45309;
+    --err:#DC2626;
+    --dark:#0B2A4A;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Roboto Mono",monospace;
     --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --r:14px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;padding:0;}
-  body{
-    background:var(--bg);
-    color:var(--ink);
-    font-family:var(--sans);
-    font-size:16px;
-    line-height:1.55;
-    -webkit-font-smoothing:antialiased;
-    text-rendering:optimizeLegibility;
-    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink,#111827);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .app{max-width:520px;margin:0 auto;padding:20px 16px 90px;}
+
+  /* ===== Header ===== */
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:6px 2px 16px;}
+  .brand{display:flex;align-items:center;gap:9px;}
+  .brand .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#2563EB,#1E40AF);display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;flex:none;}
+  .brand h1{margin:0;font-size:19px;font-weight:700;letter-spacing:.01em;}
+  .brand p{margin:1px 0 0;font-size:11.5px;color:var(--faint);}
+  .date-wrap{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);}
+  .date-wrap input[type=date]{font-family:var(--mono);font-size:12px;border:1px solid var(--line2);border-radius:8px;padding:5px 8px;background:#fff;color:var(--ink);outline:none;}
+
+  /* —— 通用卡片 —— */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 16px 14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);}
+  .card-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .card-head .step{flex:none;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+  .card-head .t{font-size:14px;font-weight:700;}
+  .card-head .spacer{flex:1;}
+  .card-head .hint{font-size:11px;color:var(--faint);font-weight:400;}
+
+  /* —— 粘贴 —— */
+  textarea{
+    width:100%;min-height:88px;font-size:14px;line-height:1.65;color:var(--ink);
+    border:1px solid var(--line2);border-radius:10px;padding:10px 12px;resize:vertical;
+    background:#FCFCFD;outline:none;transition:border-color .15s;font-family:var(--sans);
   }
-  .wrap{
-    max-width:560px;
-    margin:0 auto;
-    padding:28px 20px 120px;
+  textarea:focus{border-color:var(--accent);}
+  .paste-bar{display:flex;align-items:center;gap:10px;margin-top:9px;flex-wrap:wrap;}
+  .btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:600;padding:8px 16px;transition:opacity .15s,background .15s;-webkit-user-select:none;user-select:none;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{opacity:.9;}
+  .btn-ghost{background:transparent;color:var(--sub);border:1px solid var(--line2);}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+  .status{font-size:12px;color:var(--faint);line-height:1.5;}
+  .status.ok{color:var(--ok,#15803D);}
+  .status.err{color:var(--err);}
+
+  /* —— 数据表单 —— */
+  .subsection{margin:4px 0 10px;}
+  .sub-title{display:flex;align-items:baseline;justify-content:space-between;font-size:12px;font-weight:600;color:var(--sub);margin-bottom:6px;}
+  .sub-title .d{font-family:var(--mono);font-size:11px;color:var(--faint);font-weight:500;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .cell label{display:block;font-size:11.5px;color:var(--faint);margin-bottom:3px;font-weight:500;}
+  .cell input{
+    width:100%;font-size:16px;font-family:var(--mono);font-weight:600;color:var(--ink);
+    border:1px solid var(--line2);border-radius:9px;padding:8px 10px;outline:none;background:#fff;
+    transition:border-color .15s;
   }
+  .cell input:focus{border-color:var(--accent);}
+  .cell input::placeholder{color:#C6CBD4;font-weight:400;font-size:13px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
 
-  .head{padding:4px 2px 22px;}
-  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:600;}
-  h1{margin:8px 0 6px;font-size:30px;line-height:1.18;font-weight:700;letter-spacing:-.01em;}
-  .target-line{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;color:var(--sub);font-size:14px;}
-  .target-line .pill{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--ink);background:#F1EEE6;border-radius:7px;padding:3px 9px;}
-  .target-line input[type=date]{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--ink);background:#F1EEE6;border:none;border-radius:7px;padding:3px 8px;-webkit-appearance:none;appearance:none;cursor:pointer;}
-
-  .group{padding:18px 2px 4px;border-top:1px solid var(--line);}
-  .group:first-of-type{border-top:none;padding-top:6px;}
-  .group-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px;}
-  .group-title{font-size:15px;font-weight:600;letter-spacing:.01em;}
-  .group-date{font-family:var(--mono);font-size:12px;color:var(--faint);font-weight:500;}
-
-  .field{display:grid;grid-template-columns:84px 1fr;align-items:center;gap:14px;padding:11px 0;border-top:1px dashed var(--line);}
-  .field:first-of-type{border-top:none;}
-  .field label{font-size:14px;color:var(--sub);font-weight:500;}
-  .field input{width:100%;font-size:17px;font-family:var(--mono);font-weight:600;color:var(--ink);background:transparent;border:none;outline:none;padding:6px 0;border-bottom:1.5px solid var(--line-strong);transition:border-color .15s;}
-  .field input::placeholder{color:#C7C4BC;font-weight:400;font-family:var(--sans);font-size:14px;}
-  .field input:focus{border-bottom-color:var(--accent);}
-  .unit{font-size:12px;color:var(--faint);margin-left:2px;}
-
-  .out{margin-top:30px;}
-  .out-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-  .out-title{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--sub);}
-  .copy-btn{font-size:13px;font-weight:600;color:var(--accent);background:none;border:none;cursor:pointer;padding:4px 2px;font-family:var(--sans);}
-  .copy-btn:disabled{color:var(--faint);cursor:default;}
-  .out-box{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px;font-size:15px;line-height:1.75;color:var(--ink);white-space:pre-wrap;word-break:break-word;box-shadow:0 1px 2px rgba(10,10,10,.03);min-height:60px;}
-  .out-box .hint{color:var(--faint);font-size:14px;font-style:italic;}
-  .out-box .low{color:var(--low);font-weight:600;}
-  .out-box .high{color:var(--high);font-weight:600;}
-  .out-box .same{color:var(--same);font-weight:600;}
-  .out-box .miss{color:var(--faint);}
-
-  .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translateX(-50%) translateY(20px);background:#0A0A0A;color:#FAFAF7;font-size:13px;font-weight:500;padding:10px 18px;border-radius:999px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:50;}
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-
-  .foot{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:var(--faint);line-height:1.6;}
-
-  /* —— 粘贴识别 —— */
-  .pastebox{
-    margin:0 0 8px;padding:16px 18px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
-    box-shadow:0 1px 2px rgba(10,10,10,.03);
+  /* —— 报告 —— */
+  .report{
+    background:#EFF6FF;border-left:3px solid var(--accent);border-radius:0 10px 10px 0;
+    padding:12px 14px;font-size:14px;line-height:1.75;color:#1E3A5F;
+    white-space:pre-wrap;word-break:break-word;min-height:56px;
   }
-  .pastebox-title{font-size:15px;font-weight:700;margin-bottom:10px;letter-spacing:.01em;}
-  .pastebox textarea{
-    width:100%;font-family:var(--sans);font-size:14px;line-height:1.6;color:var(--ink);
-    border:1px solid var(--line-strong);border-radius:10px;padding:10px 12px;resize:vertical;
-    background:#FCFBF8;outline:none;transition:border-color .15s;
-  }
-  .pastebox textarea:focus{border-color:var(--accent);}
-  .pastebox-bar{display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap;}
-  .pastebtn{
-    font-size:14px;font-weight:600;color:#fff;background:var(--accent);border:none;border-radius:9px;
-    padding:8px 18px;cursor:pointer;transition:opacity .15s;
-  }
-  .pastebtn:hover{opacity:.88;}
-  .pastebox-hint{font-size:12px;color:var(--faint);}
-  .paste-ok{color:var(--same);font-weight:600;}
-  .paste-err{color:var(--high);font-weight:600;}
+  .report .miss{color:#94A3B8;}
+  .report .low{color:var(--accent-d);font-weight:600;}
+  .report .high{color:var(--err);font-weight:600;}
+  .report .same{color:var(--ok,#15803d);font-weight:600;}
 
   /* —— 综合计算器 —— */
-  .calc{
-    margin-top:34px;padding:20px;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,#F4F7FB,#FFFFFF);
+  .calc{background:linear-gradient(160deg,#0B2A4A,#123B66);border-color:#123B66;color:#EAF2FB;}
+  .calc .card-head .t{color:#fff;}
+  .calc .card-head .hint{color:#9DB8D9;}
+  .tabs{display:flex;gap:6px;margin-bottom:10px;}
+  .tab{flex:1;text-align:center;font-size:13px;font-weight:600;color:#9DB8D9;padding:7px 0;border-radius:9px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid transparent;transition:all .15s;}
+  .tab.active{background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.25);}
+  .calc .grid{margin-bottom:10px;}
+  .calc .cell label{color:#9DB8D9;}
+  .calc .cell input{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:#fff;}
+  .calc .cell input:focus{border-color:#93C5FD;}
+  .calc .cell input::placeholder{color:#7E9CC0;}
+  .calc-out{
+    border-radius:10px;padding:12px 14px;font-family:var(--mono);font-size:14px;line-height:1.7;
+    background:rgba(0,0,0,.28);min-height:50px;
   }
-  .calc .calc-title{font-size:15px;font-weight:700;letter-spacing:.01em;display:flex;align-items:center;gap:8px;}
-  .calc .calc-title .badge{font-size:11px;font-weight:700;color:#fff;background:var(--calc);border-radius:6px;padding:2px 7px;letter-spacing:.04em;}
-  .calc .calc-sub{font-size:12px;color:var(--sub);margin:6px 0 14px;line-height:1.5;}
-  .calc .row{display:grid;grid-template-columns:110px 1fr 1fr;gap:10px;align-items:center;margin-bottom:12px;}
-  .calc .row .lbl{font-size:13px;font-weight:600;color:var(--ink);}
-  .calc .row input{width:100%;font-size:16px;font-family:var(--mono);font-weight:600;color:var(--ink);background:#fff;border:1px solid var(--line-strong);border-radius:9px;padding:9px 11px;outline:none;transition:border-color .15s;}
-  .calc .row input:focus{border-color:var(--calc);}
-  .calc .row .cap{font-size:11px;color:var(--faint);}
-  .calc .calc-out{margin-top:6px;background:#0A2A4A;color:#EAF2FB;border-radius:var(--radius);padding:14px 16px;font-size:16px;font-weight:600;line-height:1.6;white-space:pre-wrap;min-height:52px;font-family:var(--mono);}
-  .calc .calc-hint{font-size:11px;color:var(--faint);margin-top:8px;line-height:1.5;}
+  .calc-out .num{font-size:26px;font-weight:800;color:#7DD3FC;display:block;margin:2px 0;}
+  .calc-out .formula{font-size:11.5px;color:#9DB8D9;}
+  .calc-bar{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;}
+
+  /* —— 脚注与toast —— */
+  .foot{margin-top:22px;font-size:11px;color:var(--faint);line-height:1.7;text-align:center;}
+  .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 26px);transform:translateX(-50%) translateY(16px);background:#111827;color:#FAFAF7;font-size:13px;font-weight:500;padding:10px 20px;border-radius:999px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:60;box-shadow:0 4px 14px rgba(0,0,0,.25);}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <header class="head">
-      <div class="eyebrow">辐照度会商</div>
-      <h1>每日辐照度预测分析</h1>
-      <div class="target-line">
-        <span>目标日</span>
-        <span class="pill" id="targetPill">—</span>
-        <span>·</span>
-        <input type="date" id="targetDate" aria-label="目标日" />
-      </div>
-    </header>
+<div class="app">
 
-    <!-- 粘贴识别：直接贴会商消息文字，自动解析并生成结论 -->
-    <section class="pastebox">
-      <div class="pastebox-title">📋 粘贴会商消息</div>
-      <textarea id="pasteInput" rows="4" placeholder="直接粘贴消息文字，例如：&#10;9月10日 省内预测：服务中心_600-650_ 金风_665_   日前出口：600 &#10;···· 真值：632"></textarea>
-      <div class="pastebox-bar">
-        <button id="pasteBtn" class="pastebtn">自动解析</button>
-        <span class="pastebox-hint" id="pasteHint">支持格式：真值/日前/日内、(偏大|偏小|区间内)、"_数字_" 等</span>
+  <header>
+    <div class="brand">
+      <div class="logo">☀</div>
+      <div>
+        <h1>辐照度会商助手</h1>
+        <p>预测 · 复盘 · 综合 · 一键出文</p>
       </div>
-    </section>
+    </div>
+    <div class="date-wrap">
+      <span>目标日</span>
+      <input type="date" id="targetDate" aria-label="目标日" />
+    </div>
+  </header>
 
-    <section class="group">
-      <div class="group-head">
-        <div class="group-title">日前预测</div>
-        <div class="group-date" id="prevDateLabel">—</div>
-      </div>
-      <div class="field">
-        <label for="prev-center">服务中心</label>
-        <input id="prev-center" type="text" inputmode="numeric" placeholder="350 或 350-450" autocomplete="off" />
-      </div>
-      <div class="field">
-        <label for="prev-jinfeng">金风</label>
-        <input id="prev-jinfeng" type="text" inputmode="numeric" placeholder="476 或 470-500" autocomplete="off" />
-      </div>
-    </section>
+  <!-- 1 粘贴 -->
+  <section class="card">
+    <div class="card-head">
+      <span class="step">1</span>
+      <span class="t">粘贴会商消息</span>
+      <span class="spacer"></span>
+      <span class="hint">微信文字直接粘</span>
+    </div>
+    <textarea id="pasteInput" rows="3" placeholder="粘贴消息文字，例如：&#10;9月10日 日内订正 服务中心_600-650_ 金风_665_；日前 服务中心_600_ 金风_548_；真值：632&#10;或官方日报全文……"></textarea>
+    <div class="paste-bar">
+      <button class="btn btn-primary" id="pasteBtn">自动解析</button>
+      <span class="status" id="pasteHint">支持：真值 / 日前 / 日内 / 服务中心 / 金风 / 区间 / 偏大偏小</span>
+    </div>
+  </section>
 
-    <section class="group">
-      <div class="group-head">
-        <div class="group-title">日内订正</div>
-        <div class="group-date" id="targetDateLabel1">—</div>
-      </div>
-      <div class="field">
-        <label for="intra-center">服务中心</label>
-        <input id="intra-center" type="text" inputmode="numeric" placeholder="450" autocomplete="off" />
-      </div>
-      <div class="field">
-        <label for="intra-jinfeng">金风</label>
-        <input id="intra-jinfeng" type="text" inputmode="numeric" placeholder="412" autocomplete="off" />
-      </div>
-    </section>
+  <!-- 2 数据 -->
+  <section class="card">
+    <div class="card-head">
+      <span class="step">2</span>
+      <span class="t">预测数据</span>
+      <span class="spacer"></span>
+      <span class="hint">可直接手改</span>
+    </div>
 
-    <section class="group">
-      <div class="group-head">
-        <div class="group-title">会商与真值</div>
-        <div class="group-date" id="targetDateLabel2">—</div>
+    <div class="subsection">
+      <div class="sub-title">
+        <span>日前预测</span>
+        <span id="prevDate">—</span>
       </div>
-      <div class="field">
-        <label for="consult-da">日前出口</label>
-        <input id="consult-da" type="text" inputmode="numeric" placeholder="300" autocomplete="off" />
+      <div class="grid">
+        <div class="cell">
+          <label for="prev-center">服务中心</label>
+          <input id="prev-center" inputmode="decimal" placeholder="600 或 550-600" autocomplete="off" />
+        </div>
+        <div class="cell">
+          <label for="prev-jinfeng">金风</label>
+          <input id="prev-jinfeng" inputmode="decimal" placeholder="548" autocomplete="off" />
+        </div>
       </div>
-      <div class="field">
-        <label for="consult">日内会商</label>
-        <input id="consult" type="text" inputmode="numeric" placeholder="280" autocomplete="off" />
-      </div>
-      <div class="field">
-        <label for="truth">真值</label>
-        <input id="truth" type="text" inputmode="numeric" placeholder="254" autocomplete="off" />
-      </div>
-    </section>
+    </div>
 
-    <section class="out">
-      <div class="out-head">
-        <div class="out-title">生成结果</div>
-        <button class="copy-btn" id="copyBtn" disabled>复制</button>
+    <div class="subsection">
+      <div class="sub-title">
+        <span>日内订正</span>
+        <span id="intraDate">—</span>
       </div>
-      <div class="out-box" id="outBox"><span class="hint">填写真值与各预测值后自动生成。</span></div>
-    </section>
-
-    <!-- 综合计算器：按校准权重从预测综合出结论 -->
-    <section class="calc" id="calcPanel">
-      <div class="calc-title">综合计算器 <span class="badge">按当前权重</span></div>
-      <div class="calc-sub">输入服务中心（省气象）与金风的预测值，按校准权重（日前5:1、日内1.5:1）+ 10取整 综合出会商结论。选"日内"或"日前"切换时段。</div>
-
-      <div class="row">
-        <span class="lbl">时段</span>
-        <label class="cap"><input type="radio" name="calc-epoch" value="intra" checked /> 日内（w=0.60）</label>
-        <label class="cap"><input type="radio" name="calc-epoch" value="prev" /> 日前（w=0.85）</label>
+      <div class="grid">
+        <div class="cell">
+          <label for="intra-center">服务中心</label>
+          <input id="intra-center" inputmode="decimal" placeholder="600-650" autocomplete="off" />
+        </div>
+        <div class="cell">
+          <label for="intra-jinfeng">金风</label>
+          <input id="intra-jinfeng" inputmode="decimal" placeholder="665" autocomplete="off" />
+        </div>
       </div>
-      <div class="row">
-        <span class="lbl">服务中心</span>
-        <input id="calc-center" inputmode="numeric" placeholder="如 625 或 600-650" autocomplete="off" />
-        <span class="cap">W/m²</span>
-      </div>
-      <div class="row">
-        <span class="lbl">金风</span>
-        <input id="calc-jinfeng" inputmode="numeric" placeholder="如 665" autocomplete="off" />
-        <span class="cap">W/m²</span>
-      </div>
-      <div class="calc-out" id="calcOut">输入服务中心和/或金风值，自动综合。</div>
-      <div class="calc-hint">结果仅前端计算，数据不出浏览器。结论 = round10( w×服务中心中值 + (1−w)×金风 )。权重来自历史样本回测，随样本更新。</div>
-    </section>
+    </div>
 
-    <footer class="foot">
-      以实际辐照度峰值为基准比较，仅输出峰值偏差；预测值小于真值记"偏小"，大于记"偏大"，相等记"与实际一致"，真值落在预测区间内记"区间内"。默认单位 W/m²。综合计算器权重来自历史样本回测。
-    </footer>
-  </div>
+    <div class="subsection">
+      <div class="sub-title">
+        <span>会商与真值</span>
+        <span id="truthDate">—</span>
+      </div>
+      <div class="grid3">
+        <div class="cell">
+          <label for="consult-da">日前出口</label>
+          <input id="consult-da" inputmode="decimal" placeholder="600" autocomplete="off" />
+        </div>
+        <div class="cell">
+          <label for="consult">日内会商</label>
+          <input id="consult" inputmode="decimal" placeholder="640" autocomplete="off" />
+        </div>
+        <div class="cell">
+          <label for="truth">真值</label>
+          <input id="truth" inputmode="decimal" placeholder="632" autocomplete="off" />
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <div class="toast" id="toast">已复制</div>
+  <!-- 3 报告 -->
+  <section class="card">
+    <div class="card-head">
+      <span class="step">3</span>
+      <span class="t">会商报告</span>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" id="copyBtn" disabled>复制报告</button>
+    </div>
+    <div class="report" id="outBox">填写或粘贴数据后自动生成。</div>
+  </section>
+
+  <!-- 综合计算器 -->
+  <section class="card calc">
+    <div class="card-head">
+      <span class="t">综合计算器</span>
+      <span class="spacer"></span>
+      <span class="hint">权重：w=0.85 / 0.60</span>
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-epoch="intra">日内（w=0.60）</div>
+      <div class="tab" data-epoch="prev">日前（w=0.85）</div>
+    </div>
+    <div class="grid">
+      <div class="cell">
+        <label for="clc-c">服务中心</label>
+        <input id="clc-c" inputmode="decimal" placeholder="625 或 600-650" autocomplete="off" />
+      </div>
+      <div class="cell">
+        <label for="clc-j">金风</label>
+        <input id="clc-j" inputmode="decimal" placeholder="665" autocomplete="off" />
+      </div>
+    </div>
+    <div class="calc-out" id="clcOut">
+      <span class="num">—</span>
+      <span class="formula" id="clcFormula">输入值后自动综合（10 取整）</span>
+    </div>
+    <div class="calc-bar">
+      <button class="btn btn-ghost" id="clcCopy" style="border-color:rgba(255,255,255,.25);color:#EAF2FB;">复制结论</button>
+      <span class="status" style="color:#9DB8D9;">区间取中值 · 结果仅前端计算</span>
+    </div>
+  </section>
+
+  <div class="foot">真值落在预测区间内记「区间内」；预测小于真值记「偏小」，大于记「偏大」。权重由历史样本回测，随样本更新。</div>
+</div>
+
+<div class="toast" id="toast">已复制</div>
 
 <script>
-(function(){
+(function () {
   "use strict";
 
-  // —— 日期工具 ——
-  function shanghaiNow(){
-    var fmt = new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"});
-    var parts = fmt.formatToParts(new Date());
-    var y,m,d;
-    parts.forEach(function(p){ if(p.type==="year")y=p.value; if(p.type==="month")m=p.value; if(p.type==="day")d=p.value; });
-    return new Date(Number(y), Number(m)-1, Number(d));
-  }
-  function toDate(str){
-    if(!str) return null;
-    var p = str.split("-");
-    if(p.length!==3) return null;
-    return new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
-  }
-  function pad(n){return n<10?"0"+n:""+n;}
-  function iso(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
-  function cn(d){return (d.getMonth()+1)+"月"+d.getDate()+"日";}
-  function prevDay(d){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()-1); }
+  var $ = function (id) { return document.getElementById(id); };
 
-  // —— 数值解析 ——
-  function parseVal(raw){
-    if(raw==null) return null;
+  /* ================= 工具 ================= */
+  var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
+  function shanghaiNow() {
+    var f = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" });
+    var p = f.formatToParts(new Date()), y, m, d;
+    p.forEach(function (x) { if (x.type === "year") y = x.value; if (x.type === "month") m = x.value; if (x.type === "day") d = x.value; });
+    return new Date(+y, +m - 1, +d);
+  }
+  var iso = function (dt) { return dt.getFullYear() + "-" + pad(dt.getMonth() + 1) + "-" + pad(dt.getDate()); };
+  var cn = function (dt) { return (dt.getMonth() + 1) + "月" + dt.getDate() + "日"; };
+  var toDate = function (s) { if (!s) return null; var p = s.split("-"); if (p.length !== 3) return null; return new Date(+p[0], +p[1] - 1, +p[2]); };
+  var prevDay = function (dt) { return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() - 1); };
+  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+
+  /* 数值解析：单值 / 区间 */
+  function parseVal(raw) {
+    if (raw == null) return null;
     var s = String(raw).trim();
-    if(!s) return null;
-    s = s.replace(/\s+/g,"").replace(/[～~—–]/g,"-");
-    var m = s.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/);
-    if(m){
-      var lo=parseFloat(m[1]), hi=parseFloat(m[2]);
-      if(lo>hi){var t=lo;lo=hi;hi=t;}
-      return {type:"range",lo:lo,hi:hi};
-    }
-    var m2 = s.match(/^(\d+(?:\.\d+)?)$/);
-    if(m2) return {type:"single",val:parseFloat(m2[1])};
+    if (!s) return null;
+    s = s.replace(/\s+/g, "").replace(/[～~—–]/g, "-");
+    var r = s.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/);
+    if (r) { var lo = +r[1], hi = +r[2]; if (lo > hi) { var t = lo; lo = hi; hi = t; } return { type: "range", lo: lo, hi: hi }; }
+    var s2 = s.match(/^(\d+(?:\.\d+)?)$/);
+    if (s2) return { type: "single", val: +s2[1] };
     return null;
   }
-  function fmtVal(v){
-    if(!v) return null;
-    if(v.type==="single") return Math.round(v.val)+"";
-    return Math.round(v.lo)+"～"+Math.round(v.hi);
-  }
-  function fmtValUnit(v){
-    var s=fmtVal(v); return s? s+" W/m²" : null;
-  }
-  function mid(v){ if(!v) return null; return v.type==="range" ? (v.lo+v.hi)/2 : v.val; }
-
-  // —— 偏差计算 ——
-  function calcDev(predicted, truth){
-    if(!predicted || !truth || truth.type!=="single") return null;
-    var T = truth.val;
-    if(predicted.type==="single"){
-      var P = predicted.val;
-      if(P===T) return {text:"与实际一致", cls:"same"};
-      if(P<T) return {text:"偏小"+Math.round(T-P)+" W/m²", cls:"low"};
-      return {text:"偏大"+Math.round(P-T)+" W/m²", cls:"high"};
-    } else {
-      var lo=predicted.lo, hi=predicted.hi;
-      if(T>=lo && T<=hi) return {text:"区间内", cls:"inrange same"};
-      if(T>hi){ var s=T-hi, b=T-lo; return {text:"偏小"+Math.round(s)+"～"+Math.round(b)+" W/m²", cls:"low"}; }
-      else { var s2=lo-T, b2=hi-T; return {text:"偏大"+Math.round(s2)+"～"+Math.round(b2)+" W/m²", cls:"high"}; }
-    }
-  }
-  function seg(valStr, dev, valueMissing){
-    var text="", html="";
-    if(valueMissing){ text="___"; html='<span class="miss">___</span>'; }
-    else { text=valStr; html=escapeHtml(valStr); }
-    if(dev){ text+="（"+dev.text+"）"; html+="（"+'<span class="'+dev.cls+'">'+escapeHtml(dev.text)+"</span>）"; }
-    return {text:text, html:html};
-  }
-  function escapeHtml(s){return String(s).replace(/[&<>]/g,function(c){return c==="&"?"&amp;":c==="<"?"&lt;":"&gt;";});}
-
-  // —— DOM ——
-  var els = {
-    targetDate: document.getElementById("targetDate"),
-    targetPill: document.getElementById("targetPill"),
-    prevDateLabel: document.getElementById("prevDateLabel"),
-    targetDateLabel1: document.getElementById("targetDateLabel1"),
-    targetDateLabel2: document.getElementById("targetDateLabel2"),
-    prevCenter: document.getElementById("prev-center"),
-    prevJinfeng: document.getElementById("prev-jinfeng"),
-    intraCenter: document.getElementById("intra-center"),
-    intraJinfeng: document.getElementById("intra-jinfeng"),
-    consultDa: document.getElementById("consult-da"),
-    consult: document.getElementById("consult"),
-    truth: document.getElementById("truth"),
-    outBox: document.getElementById("outBox"),
-    copyBtn: document.getElementById("copyBtn"),
-    toast: document.getElementById("toast"),
-    // 综合计算器
-    calcCenter: document.getElementById("calc-center"),
-    calcJinfeng: document.getElementById("calc-jinfeng"),
-    calcOut: document.getElementById("calcOut")
+  var mid = function (v) { return v ? (v.type === "range" ? (v.lo + v.hi) / 2 : v.val) : null; };
+  var fmt = function (v) {
+    if (!v) return null;
+    var r = v.type === "range" ? Math.round(v.lo) + "～" + Math.round(v.hi) : String(Math.round(v.val));
+    return r + " W/m²";
   };
 
-  var lastText = "";
-
-  // —— 综合计算器（START）——
-  // 权重（history回测默认）：日内0.60，日前0.85。可在此静态调整。
-  var CALC_W = { "intra": 0.60, "prev": 0.85 };
-  var CALC_ROUND = 10;
-  function renderCalc(){
-    var epoch = document.querySelector('input[name="calc-epoch"]:checked').value;
-    var c = parseVal(els.calcCenter.value), j = parseVal(els.calcJinfeng.value);
-    if(!c && !j){ els.calcOut.textContent = "输入服务中心和/或金风值，自动综合。"; return; }
-    var w = CALC_W[epoch];
-    var mc = mid(c) || 0, mj = mid(j) || 0;
-    var e = w*mc + (1-w)*mj;
-    var out = Math.round(e / CALC_ROUND) * CALC_ROUND;
-    var mode = epoch==="intra" ? "日内" : "日前";
-    els.calcOut.textContent = mode + "综合结论 ≈ " + out + " W/m²   ( " +
-      (mc? ("服务中心"+mc.toFixed(0)):"—") + "×"+w.toFixed(2) + " + " +
-      (mj? ("金风"+mj.toFixed(0)):"—") + "×"+(1-w).toFixed(2) + " = " + e.toFixed(0) + " → 取整" + CALC_ROUND + " )";
-  }
-  ["calc-center","calc-jinfeng"].forEach(function(id){
-    var el=document.getElementById(id);
-    if(el) el.addEventListener("input", renderCalc);
-  });
-  document.querySelectorAll('input[name="calc-epoch"]').forEach(function(r){
-    r.addEventListener("change", renderCalc);
-  });
-  // —— 综合计算器（完）——
-
-  function updateDateLabels(){
-    var d = toDate(els.targetDate.value) || shanghaiNow();
-    var p = prevDay(d);
-    els.targetPill.textContent = cn(d);
-    els.prevDateLabel.textContent = cn(p);
-    els.targetDateLabel1.textContent = cn(d);
-    els.targetDateLabel2.textContent = cn(d);
-  }
-  function readAll(){
-    return {
-      prevCenter: parseVal(els.prevCenter.value),
-      prevJinfeng: parseVal(els.prevJinfeng.value),
-      intraCenter: parseVal(els.intraCenter.value),
-      intraJinfeng: parseVal(els.intraJinfeng.value),
-      consultDa: parseVal(els.consultDa.value),
-      consult: parseVal(els.consult.value),
-      truth: parseVal(els.truth.value)
-    };
-  }
-  function detectBadInput(){
-    var checks = [
-      ["服务中心日前预测", els.prevCenter],["金风日前预测", els.prevJinfeng],
-      ["服务中心日内订正", els.intraCenter],["金风日内订正", els.intraJinfeng],
-      ["会商日前出口", els.consultDa],["会商日内调整", els.consult],["真值", els.truth]
-    ];
-    var bad=[];
-    checks.forEach(function(c){ var r=c[1].value.trim(); if(r && !parseVal(r)) bad.push(c[0]); });
-    return bad;
-  }
-  function build(){
-    var bad = detectBadInput();
-    var d = toDate(els.targetDate.value) || shanghaiNow();
-    var dateCN = cn(d);
-    var v = readAll();
-    if(!v.truth || v.truth.type!=="single"){
-      if(bad.length){ els.outBox.innerHTML='<span class="hint">无法解析：'+escapeHtml(bad.join("、"))+'。请填写数值或区间。</span>'; }
-      else { els.outBox.innerHTML='<span class="hint">填写真值与各预测值后自动生成。</span>'; }
-      lastText=""; els.copyBtn.disabled=true; return;
+  /* 偏差判断 */
+  function calcDev(p, truth) {
+    if (!p || !truth || truth.type !== "single") return null;
+    var T = truth.val;
+    if (p.type === "single") {
+      var P = p.val;
+      if (P === T) return { t: "与实际一致", c: "same" };
+      return P < T ? { t: "偏小" + Math.round(T - P) + " W/m²", c: "low" } : { t: "偏大" + Math.round(P - T) + " W/m²", c: "high" };
     }
-    if(bad.length){ els.outBox.innerHTML='<span class="hint">无法解析：'+escapeHtml(bad.join("、"))+'。</span>'; lastText=""; els.copyBtn.disabled=true; return; }
-    var T=v.truth.val;
-    var truthStr=Math.round(T)+" W/m²";
-    function bSeg(val){ var missing=!val; var vs=missing?null:fmtValUnit(val); var dv=missing?null:calcDev(val,v.truth); return seg(vs, dv, missing); }
-    var sCDa=bSeg(v.consultDa), sCO=bSeg(v.consult), sPC=bSeg(v.prevCenter), sPJ=bSeg(v.prevJinfeng), sIC=bSeg(v.intraCenter), sIJ=bSeg(v.intraJinfeng);
-    var p1Text=dateCN+"辐照度预测情况："+dateCN+"实际辐照度峰值为"+truthStr+"，经会商，日前出口为"+sCDa.text+"，日内会商辐照度峰值调整为"+sCO.text+"。";
-    var p1Html=escapeHtml(dateCN+"辐照度预测情况：")+escapeHtml(dateCN+"实际辐照度峰值为"+truthStr+"，经会商，日前出口为")+sCDa.html+escapeHtml("，日内会商辐照度峰值调整为")+sCO.html+escapeHtml("。");
-    var p2Text="服务中心日前预测为"+sPC.text+"，日内预测为"+sIC.text+"；"+"金风日前预测为"+sPJ.text+"，日内预测为"+sIJ.text+"。";
-    var p2Html="服务中心日前预测为"+sPC.html+"，日内预测为"+sIC.html+"；"+"金风日前预测为"+sPJ.html+"，日内预测为"+sIJ.html+"。";
-    lastText=p1Text+p2Text;
-    els.outBox.innerHTML=p1Html+p2Html;
-    els.copyBtn.disabled=false;
+    if (T >= p.lo && T <= p.hi) return { t: "区间内", c: "same" };
+    if (T > p.hi) return { t: "偏小" + Math.round(T - p.hi) + "～" + Math.round(T - p.lo) + " W/m²", c: "low" };
+    return { t: "偏大" + Math.round(p.lo - T) + "～" + Math.round(p.hi - T) + " W/m²", c: "high" };
   }
-  function render(){ updateDateLabels(); build(); }
-  function showToast(m){ els.toast.textContent=m; els.toast.classList.add("show"); setTimeout(function(){els.toast.classList.remove("show");},1500); }
-  els.copyBtn.addEventListener("click", function(){
-    if(!lastText) return;
-    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(lastText).then(function(){showToast("已复制");},function(){fallbackCopy();}); }
-    else fallbackCopy();
-  });
-  function fallbackCopy(){ var ta=document.createElement("textarea"); ta.value=lastText; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");showToast("已复制");}catch(e){showToast("复制失败");} document.body.removeChild(ta); }
-  var composing=false, rafId=null;
-  function scheduleRender(){ if(rafId)cancelAnimationFrame(rafId); rafId=requestAnimationFrame(function(){rafId=null;render();}); }
-  ["prev-center","prev-jinfeng","intra-center","intra-jinfeng","consult-da","consult","truth"].forEach(function(id){ var el=document.getElementById(id); el.addEventListener("compositionstart",function(){composing=true;}); el.addEventListener("compositionend",function(){composing=false;scheduleRender();}); el.addEventListener("input",function(){ if(!composing)scheduleRender(); }); });
-  els.targetDate.addEventListener("change", scheduleRender);
-  els.targetDate.addEventListener("input", function(){ if(!composing)scheduleRender(); });
-  (function init(){ var today=shanghaiNow(); els.targetDate.value=iso(today); render(); renderCalc(); })();
+  function devTag(v, truth) {
+    if (!v) return { txt: "___", html: '<span class="miss">___</span>' };
+    var valTxt = fmt(v);
+    var d = calcDev(v, truth);
+    if (!d) return { txt: valTxt, html: esc(valTxt) };
+    return { txt: valTxt + "（" + d.t + "）", html: esc(valTxt) + "（<span class=\"" + d.c + "\">" + esc(d.t) + "</span>）" };
+  }
 
-  // —— 粘贴识别 ——
-  var pasteInput=document.getElementById("pasteInput");
-  var pasteBtn=document.getElementById("pasteBtn");
-  var pasteHint=document.getElementById("pasteHint");
-  function parseMsg(txt){
-    // 归一化：去下划线/空格变形，统一分隔符
-    var t=String(txt||"").replace(/[_＿\u3000]/g,"").replace(/[～~]/g,"-").replace(/[\s，,；;]+/g," ");
-    var res={};
-    // 官方日报式句式标记（"服务中心日前预测为600"→ 用按源提取覆盖成对提取）
+  /* ================= 粘贴解析 ================= */
+  function parseMsg(txt) {
+    var t = String(txt || "").replace(/[_＿\u3000]/g, "").replace(/[～~]/g, "-").replace(/[\s，,；;]+/g, " ");
+    var res = {};
     var isFormal = /预测为|订正为|调整为/.test(t);
-    // 1) 真值
-    var m=t.match(/(?:真值|实际辐照度峰值|辐照度峰值为|真值为)[^0-9]{0,6}?(\d{2,4}(?:-\d{2,4})?)/);
-    if(m) res.truth=m[1];
-    // 2) 成对解析（简报式："日前预测：服务中心 700-750 金风 712"）
-    [{k:"日前",pf:"prev"},{k:"日内",pf:"intra"}].forEach(function(o){
-      var ki=t.indexOf(o.k);
-      if(ki<0) return;
-      var seg=t.slice(ki+o.k.length, ki+o.k.length+86);
-      var ci=seg.indexOf("服务中心"), ji=seg.indexOf("金风");
-      function numAfter(pos){ var s=seg.slice(pos); var mm=s.match(/^[^0-9]{0,8}?(\d{2,4}(?:-\d{2,4})?)/); return mm?mm[1]:null; }
-      if(ci>=0 && ji>=0){
-        // 两个源按出现顺序取值
-        var first = ci<ji ? [numAfter(ci),"Center"] : [numAfter(ji),"Jinfeng"];
-        var second = ci<ji ? [numAfter(ji),"Jinfeng"] : [numAfter(ci),"Center"];
-        if(first[0]!=null) res[o.pf+first[1]]=first[0];
-        if(second[0]!=null) res[o.pf+second[1]]=second[0];
-      } else if(ci>=0){
-        var v=numAfter(ci); if(v!=null) res[o.pf+"Center"]=v;
-      } else if(ji>=0){
-        var v2=numAfter(ji); if(v2!=null) res[o.pf+"Jinfeng"]=v2;
+    var m = t.match(/(?:真值|实际辐照度峰值|辐照度峰值为|真值为)[^0-9]{0,6}?(\d{2,4}(?:-\d{2,4})?)/);
+    if (m) res.truth = m[1];
+    [{ k: "日前", pf: "prev" }, { k: "日内", pf: "intra" }].forEach(function (o) {
+      var ki = t.indexOf(o.k);
+      if (ki < 0) return;
+      var seg = t.slice(ki + o.k.length, ki + o.k.length + 86);
+      var ci = seg.indexOf("服务中心"), ji = seg.indexOf("金风");
+      function numAfter(pos) { var s = seg.slice(pos); var mm = s.match(/^[^0-9]{0,8}?(\d{2,4}(?:-\d{2,4})?)/); return mm ? mm[1] : null; }
+      if (ci >= 0 && ji >= 0) {
+        var a = ci < ji ? [numAfter(ci), "Center"] : [numAfter(ji), "Jinfeng"];
+        var b = ci < ji ? [numAfter(ji), "Jinfeng"] : [numAfter(ci), "Center"];
+        if (a[0] != null) res[o.pf + a[1]] = a[0];
+        if (b[0] != null) res[o.pf + b[1]] = b[0];
+      } else if (ci >= 0) {
+        var v1 = numAfter(ci); if (v1 != null) res[o.pf + "Center"] = v1;
+      } else if (ji >= 0) {
+        var v2 = numAfter(ji); if (v2 != null) res[o.pf + "Jinfeng"] = v2;
       }
     });
-    // 3) 兜底（官方式："服务中心日前预测为600，日内预测为300；金风日前..."）
-    function srcGrab(label, slot){
-      var ix=t.indexOf(label);
-      if(ix<0) return;
-      var win=t.slice(ix, ix+96);
-      // 窗口在另一个源标签出现处截断，避免抓错源的值
-      var oi = win.indexOf(label==="服务中心" ? "金风" : "服务中心");
-      if(oi>-1) win=win.slice(0, oi);
-      var re2=new RegExp("(日前|日内)[^0-9]{0,8}?(\\d{2,4}(?:-\\d{2,4})?)","g");
+    function srcGrab(label, slot) {
+      var ix = t.indexOf(label);
+      if (ix < 0) return;
+      var win = t.slice(ix, ix + 96);
+      var oi = win.indexOf(label === "服务中心" ? "金风" : "服务中心");
+      if (oi > -1) win = win.slice(0, oi);
+      var re2 = new RegExp("(日前|日内)[^0-9]{0,8}?(\\d{2,4}(?:-\\d{2,4})?)", "g");
       var mm;
-      while((mm=re2.exec(win))){
-        var kk=mm[1]==="日前"?"prev":"intra";
-        if(isFormal || !res[kk+slot]) res[kk+slot]=mm[2];
+      while ((mm = re2.exec(win))) {
+        var kk = mm[1] === "日前" ? "prev" : "intra";
+        if (isFormal || !res[kk + slot]) res[kk + slot] = mm[2];
       }
     }
-    srcGrab("服务中心","Center");
-    srcGrab("金风","Jinfeng");
+    srcGrab("服务中心", "Center");
+    srcGrab("金风", "Jinfeng");
     return res;
   }
 
-  // 回填与解析
-  function applyParsed(res){
-    var mapped={
-      prevCenter:"prev-center", prevJinfeng:"prev-jinfeng",
-      intraCenter:"intra-center", intraJinfeng:"intra-jinfeng",
-      truth:"truth"
+  /* ================= 全流程 ================= */
+  var els = {
+    targetDate: $("targetDate"), prevDate: $("prevDate"), intraDate: $("intraDate"), truthDate: $("truthDate"),
+    pasteInput: $("pasteInput"), pasteBtn: $("pasteBtn"), pasteStatus: $("pasteHint"),
+    prevCenter: $("prev-center"), prevJinfeng: $("prev-jinfeng"),
+    intraCenter: $("intra-center"), intraJinfeng: $("intra-jinfeng"),
+    consultDa: $("consult-da"), consult: $("consult"), truth: $("truth"),
+    outBox: $("outBox"), copyBtn: $("copyBtn"),
+    clcC: $("clc-c"), clcJ: $("clc-j"), clcOut: $("clcOut"), clcFormula: $("clcFormula"), clcCopy: $("clcCopy"),
+    toast: $("toast")
+  };
+
+  var lastText = "";
+  var showToast = function (m) {
+    els.toast.textContent = m;
+    els.toast.classList.add("show");
+    setTimeout(function () { els.toast.classList.remove("show"); }, 1500);
+  };
+  function fallbackCopy(t) {
+    var ta = document.createElement("textarea");
+    ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); showToast("已复制"); } catch (e) { showToast("复制失败"); }
+    document.body.removeChild(ta);
+  }
+  function copyText(t, okMsg) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(function () { showToast(okMsg || "已复制"); }, function () { fallbackCopy(t); });
+    } else fallbackCopy(t);
+  }
+
+  function readForm() {
+    return {
+      prevCenter: parseVal(els.prevCenter.value), prevJinfeng: parseVal(els.prevJinfeng.value),
+      intraCenter: parseVal(els.intraCenter.value), intraJinfeng: parseVal(els.intraJinfeng.value),
+      consultDa: parseVal(els.consultDa.value), consult: parseVal(els.consult.value), truth: parseVal(els.truth.value)
     };
-    var filled=[];
-    Object.keys(mapped).forEach(function(k){
-      if(res[k]){ document.getElementById(mapped[k]).value=res[k]; filled.push(mapped[k]); }
+  }
+  function badInputs() {
+    var list = [
+      ["日前服务中心", els.prevCenter], ["日前金风", els.prevJinfeng],
+      ["日内服务中心", els.intraCenter], ["日内金风", els.intraJinfeng],
+      ["会商日前出口", els.consultDa], ["会商日内", els.consult], ["真值", els.truth]
+    ];
+    return list.filter(function (c) { return c[1].value.trim() && !parseVal(c[1].value); }).map(function (c) { return c[0]; });
+  }
+
+  /* 生成报告 */
+  function build() {
+    var bad = badInputs();
+    var dt = toDate(els.targetDate.value) || shanghaiNow();
+    var dateCN = cn(dt);
+    var v = readForm();
+
+    if (bad.length) {
+      els.outBox.innerHTML = '<span class="miss">无法解析：' + esc(bad.join("、")) + '。请填写数值或区间。</span>';
+      lastText = ""; els.copyBtn.disabled = true; return;
+    }
+    if (!v.truth || v.truth.type !== "single") {
+      els.outBox.innerHTML = '<span class="miss">填写目标日真值后自动生成报告。</span>';
+      lastText = ""; els.copyBtn.disabled = true; return;
+    }
+
+    var T = v.truth.val;
+    var truthStr = Math.round(T) + " W/m²";
+    function segTag(f) { return devTag(f, v.truth); }
+    var sDa = devTag(v.consultDa, v.truth), sC = devTag(v.consult, v.truth),
+        sPC = devTag(v.prevCenter, v.truth), sPJ = devTag(v.prevJinfeng, v.truth),
+        sIC = devTag(v.intraCenter, v.truth), sIJ = devTag(v.intraJinfeng, v.truth);
+
+    var p1 = dateCN + "辐照度预测情况：" + dateCN + "实际辐照度峰值为" + truthStr + "。经会商，日前出口为" + sDa.txt + "，日内会商辐照度峰值调整为" + sC.txt + "。";
+    var p2 = "服务中心日前预测为" + sPC.txt + "，日内预测为" + sIC.txt + "；金风日前预测为" + sPJ.txt + "，日内预测为" + sIJ.txt + "。";
+    var p2h = "服务中心日前预测为" + sPC.html + "，日内预测为" + sIC.html + "；" + "金风日前预测为" + sPJ.html + "，日内预测为" + sIJ.html + "。";
+    lastText = p1 + p2;
+    els.outBox.innerHTML = esc(p1) + p2h;
+    els.copyBtn.disabled = false;
+  }
+
+  /* ================= 综合计算器 ================= */
+  var CALC_W = { intra: 0.60, prev: 0.85 };
+  var curEpoch = "intra";
+  function bindTabs() {
+    var tabs = document.querySelectorAll(".tab");
+    tabs.forEach(function (tb) {
+      tb.addEventListener("click", function () {
+        tabs.forEach(function (x) { x.classList.remove("active"); });
+        tb.classList.add("active");
+        curEpoch = tb.getAttribute("data-epoch");
+        renderCalc();
+      });
     });
-    if(filled.length){ render(); renderCalc(); }
+  }
+  function renderCalc() {
+    var c = parseVal(els.clcC.value), j = parseVal(els.clcJ.value);
+    if (!c && !j) { els.clcOut.innerHTML = '<span class="num">—</span><span class="formula">输入服务中心和/或金风值</span>'; return; }
+    var w = CALC_W[curEpoch];
+    var mc = mid(c) || 0, mj = mid(j) || 0;
+    var e = w * mc + (1 - w) * mj;
+    var out = Math.round(e / 10) * 10;
+    var tag = curEpoch === "intra" ? "日内" : "日前";
+    els.clcOut.innerHTML = '<span class="num">' + out + ' W/m²</span>' +
+      '<span class="formula">' + tag + "：" + (c ? fmtValN(mc) : "—") + " ×" + w.toFixed(2) + " + " + (j ? fmtValN(mj) : "—") + " ×" + (1 - w).toFixed(2) + " = " + e.toFixed(1) + " → 取整10</span>";
+  }
+  var fmtValN = function (n) { return Math.round(n); };
+
+  /* 复制结论 */
+  function clcCopyText() {
+    var c = parseVal($("clc-c").value), j = parseVal($("clc-j").value);
+    var w = CALC_W[curEpoch];
+    var mc = mid(c) || 0, mj = mid(j) || 0;
+    var e = w * mc + (1 - w) * mj;
+    var out = Math.round(e / 10) * 10;
+    copyText("综合结论（" + (curEpoch === "intra" ? "日内" : "日前") + "）：" + out + " W/m²", "已复制结论");
+  }
+
+  /* ================= 绑定 ================= */
+  function applyParsed(res) {
+    var map = { prevCenter: "prev-center", prevJinfeng: "prev-jinfeng", intraCenter: "intra-center", intraJinfeng: "intra-jinfeng", truth: "truth" };
+    var filled = [];
+    Object.keys(map).forEach(function (k) { if (res[k]) { $(map[k]).value = res[k]; filled.push(k); } });
     return filled;
   }
-  function doParse(){
-    var txt=pasteInput.value;
-    if(!txt.trim()){ pasteHint.innerHTML='<span class="paste-err">请先粘贴消息文字</span>'; return; }
-    var res=parseMsg(txt);
-    var filled=applyParsed(res);
-    var parts=[];
-    if(res.truth) parts.push("真值 "+res.truth);
-    if(res.prevCenter) parts.push("日前服务中心"+res.prevCenter);
-    if(res.prevJinfeng) parts.push("日前金风"+res.prevJinfeng);
-    if(res.intraCenter) parts.push("日内服务中心"+res.intraCenter);
-    if(res.intraJinfeng) parts.push("日内金风"+res.intraJinfeng);
-    if(parts.length){
-      pasteHint.innerHTML='<span class="paste-ok">✓ 已识别 '+parts.length+' 项 → '+parts.join("｜")+'</span>（下方已自动生成，可点复制）';
+  function doParse() {
+    var txt = els.pasteInput.value;
+    if (!txt.trim()) { els.pasteStatus.innerHTML = '<span class="err">请先粘贴消息文字</span>'; return; }
+    var res = parseMsg(txt);
+    var filled = applyParsed(res);
+    var parts = [];
+    if (res.truth) parts.push("真值" + res.truth);
+    if (res.prevCenter) parts.push("日前服" + res.prevCenter);
+    if (res.prevJinfeng) parts.push("日前金" + res.prevJinfeng);
+    if (res.intraCenter) parts.push("日内服" + res.intraCenter);
+    if (res.intraJinfeng) parts.push("日内金" + res.intraJinfeng);
+    if (parts.length) {
+      els.pasteStatus.innerHTML = '<span class="ok">✓ 已识别 ' + parts.length + ' 项 → ' + parts.join("｜") + '</span>';
+      build();
     } else {
-      pasteHint.innerHTML='<span class="paste-err">未能识别数值，请检查格式（参考：真值：632｜日前：服务中心_600-650_ 金风_665_）</span>';
+      els.pasteStatus.innerHTML = '<span class="err">未识别到数值。参考：「日前：服务中心 600 金风 548」或「真值：632」</span>';
     }
   }
-  pasteBtn.addEventListener("click", doParse);
+
+  var composing = false, raf = null;
+  function schedule() { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(function () { raf = null; build(); }); }
+  ["prev-center", "prev-jinfeng", "intra-center", "intra-jinfeng", "consult-da", "consult", "truth"].forEach(function (id) {
+    var el = $(id);
+    el.addEventListener("compositionstart", function () { composing = true; });
+    el.addEventListener("compositionend", function () { composing = false; schedule(); });
+    el.addEventListener("input", function () { if (!composing) schedule(); });
+  });
+  ["clc-c", "clc-j"].forEach(function (id) { $(id).addEventListener("input", renderCalc); });
+  els.targetDate.addEventListener("change", schedule);
+  els.targetDate.addEventListener("input", function () { if (!composing) schedule(); });
+  els.copyBtn.addEventListener("click", function () { if (lastText) copyText(lastText); });
+  els.pasteBtn.addEventListener("click", doParse);
+  els.clcCopy.addEventListener("click", clcCopyText);
+
+  /* 日期标签 */
+  function updateDateLabels() {
+    var d = toDate(els.targetDate.value) || shanghaiNow();
+    var p = prevDay(d);
+    els.prevDate.textContent = cn(p);
+    els.intraDate.textContent = cn(d);
+    els.truthDate.textContent = cn(d);
+  }
+
+  /* 初始化 */
+  (function init() {
+    els.targetDate.value = iso(shanghaiNow());
+    updateDateLabels();
+    bindTabs();
+    renderCalc();
+  })();
 })();
 </script>
 </body>
