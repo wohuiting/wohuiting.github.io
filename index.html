@@ -80,6 +80,28 @@
 
   .foot{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:var(--faint);line-height:1.6;}
 
+  /* —— 粘贴识别 —— */
+  .pastebox{
+    margin:0 0 8px;padding:16px 18px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:0 1px 2px rgba(10,10,10,.03);
+  }
+  .pastebox-title{font-size:15px;font-weight:700;margin-bottom:10px;letter-spacing:.01em;}
+  .pastebox textarea{
+    width:100%;font-family:var(--sans);font-size:14px;line-height:1.6;color:var(--ink);
+    border:1px solid var(--line-strong);border-radius:10px;padding:10px 12px;resize:vertical;
+    background:#FCFBF8;outline:none;transition:border-color .15s;
+  }
+  .pastebox textarea:focus{border-color:var(--accent);}
+  .pastebox-bar{display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap;}
+  .pastebtn{
+    font-size:14px;font-weight:600;color:#fff;background:var(--accent);border:none;border-radius:9px;
+    padding:8px 18px;cursor:pointer;transition:opacity .15s;
+  }
+  .pastebtn:hover{opacity:.88;}
+  .pastebox-hint{font-size:12px;color:var(--faint);}
+  .paste-ok{color:var(--same);font-weight:600;}
+  .paste-err{color:var(--high);font-weight:600;}
+
   /* —— 综合计算器 —— */
   .calc{
     margin-top:34px;padding:20px;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,#F4F7FB,#FFFFFF);
@@ -108,6 +130,16 @@
         <input type="date" id="targetDate" aria-label="目标日" />
       </div>
     </header>
+
+    <!-- 粘贴识别：直接贴会商消息文字，自动解析并生成结论 -->
+    <section class="pastebox">
+      <div class="pastebox-title">📋 粘贴会商消息</div>
+      <textarea id="pasteInput" rows="4" placeholder="直接粘贴消息文字，例如：&#10;9月10日 省内预测：服务中心_600-650_ 金风_665_   日前出口：600 &#10;···· 真值：632"></textarea>
+      <div class="pastebox-bar">
+        <button id="pasteBtn" class="pastebtn">自动解析</button>
+        <span class="pastebox-hint" id="pasteHint">支持格式：真值/日前/日内、(偏大|偏小|区间内)、"_数字_" 等</span>
+      </div>
+    </section>
 
     <section class="group">
       <div class="group-head">
@@ -364,7 +396,7 @@
     if(bad.length){ els.outBox.innerHTML='<span class="hint">无法解析：'+escapeHtml(bad.join("、"))+'。</span>'; lastText=""; els.copyBtn.disabled=true; return; }
     var T=v.truth.val;
     var truthStr=Math.round(T)+" W/m²";
-    function bSeg(val){ var missing=!val; var vs=missing?null:fmtValUnit(val); var dv=missing?null:calcDev(val,v.truth); return seg("",vs,dv,missing); }
+    function bSeg(val){ var missing=!val; var vs=missing?null:fmtValUnit(val); var dv=missing?null:calcDev(val,v.truth); return seg(vs, dv, missing); }
     var sCDa=bSeg(v.consultDa), sCO=bSeg(v.consult), sPC=bSeg(v.prevCenter), sPJ=bSeg(v.prevJinfeng), sIC=bSeg(v.intraCenter), sIJ=bSeg(v.intraJinfeng);
     var p1Text=dateCN+"辐照度预测情况："+dateCN+"实际辐照度峰值为"+truthStr+"，经会商，日前出口为"+sCDa.text+"，日内会商辐照度峰值调整为"+sCO.text+"。";
     var p1Html=escapeHtml(dateCN+"辐照度预测情况：")+escapeHtml(dateCN+"实际辐照度峰值为"+truthStr+"，经会商，日前出口为")+sCDa.html+escapeHtml("，日内会商辐照度峰值调整为")+sCO.html+escapeHtml("。");
@@ -388,6 +420,91 @@
   els.targetDate.addEventListener("change", scheduleRender);
   els.targetDate.addEventListener("input", function(){ if(!composing)scheduleRender(); });
   (function init(){ var today=shanghaiNow(); els.targetDate.value=iso(today); render(); renderCalc(); })();
+
+  // —— 粘贴识别 ——
+  var pasteInput=document.getElementById("pasteInput");
+  var pasteBtn=document.getElementById("pasteBtn");
+  var pasteHint=document.getElementById("pasteHint");
+  function parseMsg(txt){
+    // 归一化：去下划线/空格变形，统一分隔符
+    var t=String(txt||"").replace(/[_＿\u3000]/g,"").replace(/[～~]/g,"-").replace(/[\s，,；;]+/g," ");
+    var res={};
+    // 官方日报式句式标记（"服务中心日前预测为600"→ 用按源提取覆盖成对提取）
+    var isFormal = /预测为|订正为|调整为/.test(t);
+    // 1) 真值
+    var m=t.match(/(?:真值|实际辐照度峰值|辐照度峰值为|真值为)[^0-9]{0,6}?(\d{2,4}(?:-\d{2,4})?)/);
+    if(m) res.truth=m[1];
+    // 2) 成对解析（简报式："日前预测：服务中心 700-750 金风 712"）
+    [{k:"日前",pf:"prev"},{k:"日内",pf:"intra"}].forEach(function(o){
+      var ki=t.indexOf(o.k);
+      if(ki<0) return;
+      var seg=t.slice(ki+o.k.length, ki+o.k.length+86);
+      var ci=seg.indexOf("服务中心"), ji=seg.indexOf("金风");
+      function numAfter(pos){ var s=seg.slice(pos); var mm=s.match(/^[^0-9]{0,8}?(\d{2,4}(?:-\d{2,4})?)/); return mm?mm[1]:null; }
+      if(ci>=0 && ji>=0){
+        // 两个源按出现顺序取值
+        var first = ci<ji ? [numAfter(ci),"Center"] : [numAfter(ji),"Jinfeng"];
+        var second = ci<ji ? [numAfter(ji),"Jinfeng"] : [numAfter(ci),"Center"];
+        if(first[0]!=null) res[o.pf+first[1]]=first[0];
+        if(second[0]!=null) res[o.pf+second[1]]=second[0];
+      } else if(ci>=0){
+        var v=numAfter(ci); if(v!=null) res[o.pf+"Center"]=v;
+      } else if(ji>=0){
+        var v2=numAfter(ji); if(v2!=null) res[o.pf+"Jinfeng"]=v2;
+      }
+    });
+    // 3) 兜底（官方式："服务中心日前预测为600，日内预测为300；金风日前..."）
+    function srcGrab(label, slot){
+      var ix=t.indexOf(label);
+      if(ix<0) return;
+      var win=t.slice(ix, ix+96);
+      // 窗口在另一个源标签出现处截断，避免抓错源的值
+      var oi = win.indexOf(label==="服务中心" ? "金风" : "服务中心");
+      if(oi>-1) win=win.slice(0, oi);
+      var re2=new RegExp("(日前|日内)[^0-9]{0,8}?(\\d{2,4}(?:-\\d{2,4})?)","g");
+      var mm;
+      while((mm=re2.exec(win))){
+        var kk=mm[1]==="日前"?"prev":"intra";
+        if(isFormal || !res[kk+slot]) res[kk+slot]=mm[2];
+      }
+    }
+    srcGrab("服务中心","Center");
+    srcGrab("金风","Jinfeng");
+    return res;
+  }
+
+  // 回填与解析
+  function applyParsed(res){
+    var mapped={
+      prevCenter:"prev-center", prevJinfeng:"prev-jinfeng",
+      intraCenter:"intra-center", intraJinfeng:"intra-jinfeng",
+      truth:"truth"
+    };
+    var filled=[];
+    Object.keys(mapped).forEach(function(k){
+      if(res[k]){ document.getElementById(mapped[k]).value=res[k]; filled.push(mapped[k]); }
+    });
+    if(filled.length){ render(); renderCalc(); }
+    return filled;
+  }
+  function doParse(){
+    var txt=pasteInput.value;
+    if(!txt.trim()){ pasteHint.innerHTML='<span class="paste-err">请先粘贴消息文字</span>'; return; }
+    var res=parseMsg(txt);
+    var filled=applyParsed(res);
+    var parts=[];
+    if(res.truth) parts.push("真值 "+res.truth);
+    if(res.prevCenter) parts.push("日前服务中心"+res.prevCenter);
+    if(res.prevJinfeng) parts.push("日前金风"+res.prevJinfeng);
+    if(res.intraCenter) parts.push("日内服务中心"+res.intraCenter);
+    if(res.intraJinfeng) parts.push("日内金风"+res.intraJinfeng);
+    if(parts.length){
+      pasteHint.innerHTML='<span class="paste-ok">✓ 已识别 '+parts.length+' 项 → '+parts.join("｜")+'</span>（下方已自动生成，可点复制）';
+    } else {
+      pasteHint.innerHTML='<span class="paste-err">未能识别数值，请检查格式（参考：真值：632｜日前：服务中心_600-650_ 金风_665_）</span>';
+    }
+  }
+  pasteBtn.addEventListener("click", doParse);
 })();
 </script>
 </body>
