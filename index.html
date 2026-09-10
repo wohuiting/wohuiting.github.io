@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#FAFAF7" />
+<title>每日辐照度预测分析</title>
+<style>
+  :root{
+    --bg:#FAFAF7;
+    --surface:#FFFFFF;
+    --ink:#0A0A0A;
+    --sub:#6B7280;
+    --faint:#9CA3AF;
+    --line:#E7E5DE;
+    --line-strong:#D6D3CB;
+    --accent:#B45309;
+    --low:#1D4ED8;
+    --high:#B45309;
+    --same:#15803D;
+    --inrange:#15803D;
+    --radius:14px;
+    --mono:"SF Mono","JetBrains Mono","Roboto Mono",ui-monospace,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .wrap{
+    max-width:560px;
+    margin:0 auto;
+    padding:28px 20px 120px;
+  }
+
+  /* 顶部标题区 */
+  .head{padding:4px 2px 22px;}
+  .eyebrow{
+    font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--faint);font-weight:600;
+  }
+  h1{
+    margin:8px 0 6px;
+    font-size:30px;line-height:1.18;font-weight:700;letter-spacing:-.01em;
+  }
+  .target-line{
+    display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+    color:var(--sub);font-size:14px;
+  }
+  .target-line .pill{
+    font-family:var(--mono);font-size:13px;font-weight:600;
+    color:var(--ink);
+    background:#F1EEE6;border-radius:7px;padding:3px 9px;
+  }
+  .target-line input[type=date]{
+    font-family:var(--mono);font-size:13px;font-weight:600;
+    color:var(--ink);background:#F1EEE6;border:none;border-radius:7px;
+    padding:3px 8px;-webkit-appearance:none;appearance:none;cursor:pointer;
+  }
+
+  /* 分组 */
+  .group{padding:18px 2px 4px;border-top:1px solid var(--line);}
+  .group:first-of-type{border-top:none;padding-top:6px;}
+  .group-head{
+    display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    margin-bottom:14px;
+  }
+  .group-title{font-size:15px;font-weight:600;letter-spacing:.01em;}
+  .group-date{
+    font-family:var(--mono);font-size:12px;color:var(--faint);font-weight:500;
+  }
+
+  /* 字段行 */
+  .field{
+    display:grid;grid-template-columns:84px 1fr;align-items:center;gap:14px;
+    padding:11px 0;border-top:1px dashed var(--line);
+  }
+  .field:first-of-type{border-top:none;}
+  .field label{font-size:14px;color:var(--sub);font-weight:500;}
+  .field input{
+    width:100%;font-size:17px;font-family:var(--mono);font-weight:600;
+    color:var(--ink);background:transparent;border:none;outline:none;
+    padding:6px 0;border-bottom:1.5px solid var(--line-strong);
+    transition:border-color .15s;
+  }
+  .field input::placeholder{color:#C7C4BC;font-weight:400;font-family:var(--sans);font-size:14px;}
+  .field input:focus{border-bottom-color:var(--accent);}
+  .unit{font-size:12px;color:var(--faint);margin-left:2px;}
+
+  /* 输出区 */
+  .out{margin-top:30px;}
+  .out-head{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:12px;
+  }
+  .out-title{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--sub);}
+  .copy-btn{
+    font-size:13px;font-weight:600;color:var(--accent);
+    background:none;border:none;cursor:pointer;padding:4px 2px;
+    font-family:var(--sans);
+  }
+  .copy-btn:disabled{color:var(--faint);cursor:default;}
+  .out-box{
+    background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--radius);padding:18px 18px;
+    font-size:15px;line-height:1.75;color:var(--ink);
+    white-space:pre-wrap;word-break:break-word;
+    box-shadow:0 1px 2px rgba(10,10,10,.03);
+    min-height:60px;
+  }
+  .out-box .hint{color:var(--faint);font-size:14px;font-style:italic;}
+  .out-box .low{color:var(--low);font-weight:600;}
+  .out-box .high{color:var(--high);font-weight:600;}
+  .out-box .same{color:var(--same);font-weight:600;}
+  .out-box .miss{color:var(--faint);}
+
+  .toast{
+    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);
+    transform:translateX(-50%) translateY(20px);
+    background:#0A0A0A;color:#FAFAF7;font-size:13px;font-weight:500;
+    padding:10px 18px;border-radius:999px;opacity:0;
+    transition:opacity .2s,transform .2s;pointer-events:none;z-index:50;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .foot{
+    margin-top:34px;padding-top:18px;border-top:1px solid var(--line);
+    font-size:12px;color:var(--faint);line-height:1.6;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="head">
+      <div class="eyebrow">辐照度会商</div>
+      <h1>每日辐照度预测分析</h1>
+      <div class="target-line">
+        <span>目标日</span>
+        <span class="pill" id="targetPill">—</span>
+        <span>·</span>
+        <input type="date" id="targetDate" aria-label="目标日" />
+      </div>
+    </header>
+
+    <section class="group">
+      <div class="group-head">
+        <div class="group-title">日前预测</div>
+        <div class="group-date" id="prevDateLabel">—</div>
+      </div>
+      <div class="field">
+        <label for="prev-center">服务中心</label>
+        <input id="prev-center" type="text" inputmode="numeric" placeholder="350 或 350-450" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="prev-jinfeng">金风</label>
+        <input id="prev-jinfeng" type="text" inputmode="numeric" placeholder="476 或 470-500" autocomplete="off" />
+      </div>
+    </section>
+
+    <section class="group">
+      <div class="group-head">
+        <div class="group-title">日内订正</div>
+        <div class="group-date" id="targetDateLabel1">—</div>
+      </div>
+      <div class="field">
+        <label for="intra-center">服务中心</label>
+        <input id="intra-center" type="text" inputmode="numeric" placeholder="450" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="intra-jinfeng">金风</label>
+        <input id="intra-jinfeng" type="text" inputmode="numeric" placeholder="412" autocomplete="off" />
+      </div>
+    </section>
+
+    <section class="group">
+      <div class="group-head">
+        <div class="group-title">会商与真值</div>
+        <div class="group-date" id="targetDateLabel2">—</div>
+      </div>
+      <div class="field">
+        <label for="consult-da">日前出口</label>
+        <input id="consult-da" type="text" inputmode="numeric" placeholder="300" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="consult">日内会商</label>
+        <input id="consult" type="text" inputmode="numeric" placeholder="280" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="truth">真值</label>
+        <input id="truth" type="text" inputmode="numeric" placeholder="254" autocomplete="off" />
+      </div>
+    </section>
+
+    <section class="out">
+      <div class="out-head">
+        <div class="out-title">生成结果</div>
+        <button class="copy-btn" id="copyBtn" disabled>复制</button>
+      </div>
+      <div class="out-box" id="outBox"><span class="hint">填写真值与各预测值后自动生成。</span></div>
+    </section>
+
+    <footer class="foot">
+      以实际辐照度峰值为基准比较，仅输出峰值偏差；预测值小于真值记“偏小”，大于记“偏大”，相等记“与实际一致”，真值落在预测区间内记“区间内”。默认单位 W/m²。
+    </footer>
+  </div>
+
+  <div class="toast" id="toast">已复制</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // —— 日期工具 ——
+  function shanghaiNow(){
+    // 取 Asia/Shanghai 当前日期（不依赖联网）
+    var fmt = new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit"});
+    var parts = fmt.formatToParts(new Date());
+    var y,m,d;
+    parts.forEach(function(p){ if(p.type==="year")y=p.value; if(p.type==="month")m=p.value; if(p.type==="day")d=p.value; });
+    return new Date(Number(y), Number(m)-1, Number(d));
+  }
+  function toDate(str){ // YYYY-MM-DD -> Date(本地)
+    if(!str) return null;
+    var p = str.split("-");
+    if(p.length!==3) return null;
+    return new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+  }
+  function pad(n){return n<10?"0"+n:""+n;}
+  function iso(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+  function cn(d){return (d.getMonth()+1)+"月"+d.getDate()+"日";} // M月D日
+  function prevDay(d){ var n=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1); return n; } // 自动跨月跨年
+
+  // —— 数值解析（单值或区间，支持 - ~ ～ —） ——
+  function parseVal(raw){
+    if(raw==null) return null;
+    var s = String(raw).trim();
+    if(!s) return null;
+    s = s.replace(/\s+/g,"").replace(/～|~|—|–/g,"-");
+    // 多个连续分隔符视为区间
+    var m = s.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/);
+    if(m){
+      var lo=parseFloat(m[1]), hi=parseFloat(m[2]);
+      if(lo>hi){var t=lo;lo=hi;hi=t;}
+      return {type:"range",lo:lo,hi:hi};
+    }
+    var m2 = s.match(/^(\d+(?:\.\d+)?)$/);
+    if(m2) return {type:"single",val:parseFloat(m2[1])};
+    return null; // 无法解析
+  }
+  function fmtVal(v){
+    if(!v) return null;
+    if(v.type==="single") return Math.round(v.val)+"";
+    if(v.type==="range") return Math.round(v.lo)+"～"+Math.round(v.hi);
+    return null;
+  }
+  function fmtValUnit(v){
+    var s=fmtVal(v); return s? s+" W/m²" : null;
+  }
+
+  // —— 偏差计算 —— 返回 {text, cls} ——
+  function calcDev(predicted, truth){
+    if(!predicted || !truth || truth.type!=="single") return null;
+    var T = truth.val;
+    if(predicted.type==="single"){
+      var P = predicted.val;
+      if(P===T) return {text:"与实际一致", cls:"same"};
+      if(P<T) return {text:"偏小"+Math.round(T-P)+" W/m²", cls:"low"};
+      return {text:"偏大"+Math.round(P-T)+" W/m²", cls:"high"};
+    } else { // range
+      var lo=predicted.lo, hi=predicted.hi;
+      if(T>=lo && T<=hi) return {text:"区间内", cls:"inrange same"};
+      if(T>hi){ // 整个区间低于真值 -> 偏小
+        var small=T-hi, big=T-lo; // 从小到大
+        return {text:"偏小"+Math.round(small)+"～"+Math.round(big)+" W/m²", cls:"low"};
+      } else { // T<lo 整个区间高于真值 -> 偏大
+        var s2=lo-T, b2=hi-T;
+        return {text:"偏大"+Math.round(s2)+"～"+Math.round(b2)+" W/m²", cls:"high"};
+      }
+    }
+  }
+
+  // —— 构建一项的显示片段 —— {text, html}
+  function seg(label, valStr, dev, valueMissing){
+    // valStr: 已格式化的字符串（含单位）或 null
+    var text="", html="";
+    if(valueMissing){
+      text = "___";
+      html = '<span class="miss">___</span>';
+    } else {
+      text = valStr;
+      html = escapeHtml(valStr);
+    }
+    // 偏差括号
+    if(dev){
+      text += "（"+dev.text+"）";
+      html += "（"+'<span class="'+dev.cls+'">'+escapeHtml(dev.text)+"</span>）";
+    } else if(!valueMissing){
+      // 数值有但无法算偏差（理论上真值缺失时），留空
+    }
+    return {text:text, html:html};
+  }
+  function escapeHtml(s){return String(s).replace(/[&<>]/g,function(c){return c==="&"?"&amp;":c==="<"?"&lt;":"&gt;";});}
+
+  // —— DOM ——
+  var els = {
+    targetDate: document.getElementById("targetDate"),
+    targetPill: document.getElementById("targetPill"),
+    prevDateLabel: document.getElementById("prevDateLabel"),
+    targetDateLabel1: document.getElementById("targetDateLabel1"),
+    targetDateLabel2: document.getElementById("targetDateLabel2"),
+    prevCenter: document.getElementById("prev-center"),
+    prevJinfeng: document.getElementById("prev-jinfeng"),
+    intraCenter: document.getElementById("intra-center"),
+    intraJinfeng: document.getElementById("intra-jinfeng"),
+    consultDa: document.getElementById("consult-da"),
+    consult: document.getElementById("consult"),
+    truth: document.getElementById("truth"),
+    outBox: document.getElementById("outBox"),
+    copyBtn: document.getElementById("copyBtn"),
+    toast: document.getElementById("toast")
+  };
+
+  var lastText = "";
+
+  function updateDateLabels(){
+    var d = toDate(els.targetDate.value) || shanghaiNow();
+    var p = prevDay(d);
+    els.targetPill.textContent = cn(d);
+    els.prevDateLabel.textContent = cn(p);
+    els.targetDateLabel1.textContent = cn(d);
+    els.targetDateLabel2.textContent = cn(d);
+  }
+
+  function readAll(){
+    return {
+      prevCenter: parseVal(els.prevCenter.value),
+      prevJinfeng: parseVal(els.prevJinfeng.value),
+      intraCenter: parseVal(els.intraCenter.value),
+      intraJinfeng: parseVal(els.intraJinfeng.value),
+      consultDa: parseVal(els.consultDa.value),
+      consult: parseVal(els.consult.value),
+      truth: parseVal(els.truth.value),
+    };
+  }
+
+  function detectBadInput(){
+    // 返回无法解析但非空的输入项标签
+    var checks = [
+      ["服务中心日前预测", els.prevCenter],
+      ["金风日前预测", els.prevJinfeng],
+      ["服务中心日内订正", els.intraCenter],
+      ["金风日内订正", els.intraJinfeng],
+      ["会商日前出口", els.consultDa],
+      ["会商日内调整", els.consult],
+      ["真值", els.truth]
+    ];
+    var bad=[];
+    checks.forEach(function(c){
+      var raw=c[1].value.trim();
+      if(raw && !parseVal(raw)) bad.push(c[0]);
+    });
+    return bad;
+  }
+
+  function build(){
+    var bad = detectBadInput();
+    var d = toDate(els.targetDate.value) || shanghaiNow();
+    var dateCN = cn(d);
+    var v = readAll();
+
+    // 真值必须为单值
+    if(!v.truth || v.truth.type!=="single"){
+      if(bad.length){
+        els.outBox.innerHTML = '<span class="hint">无法解析：'+escapeHtml(bad.join("、"))+"。请填写数值或区间（如 350 或 350-450）。</span>";
+      } else {
+        els.outBox.innerHTML = '<span class="hint">填写真值与各预测值后自动生成。</span>';
+      }
+      lastText = "";
+      els.copyBtn.disabled = true;
+      return;
+    }
+    if(bad.length){
+      els.outBox.innerHTML = '<span class="hint">无法解析：'+escapeHtml(bad.join("、"))+"。请填写数值或区间（如 350 或 350-450）。</span>";
+      lastText = "";
+      els.copyBtn.disabled = true;
+      return;
+    }
+
+    var T = v.truth.val;
+    var truthStr = Math.round(T)+" W/m²";
+
+    // 各段
+    function buildSeg(val){
+      var missing = !val;
+      var valStr = missing ? null : fmtValUnit(val);
+      var dev = missing ? null : calcDev(val, v.truth);
+      return seg("", valStr, dev, missing);
+    }
+
+    var sCDa = buildSeg(v.consultDa); // 会商日前出口
+    var sCO  = buildSeg(v.consult);   // 会商日内调整
+    var sPC  = buildSeg(v.prevCenter);
+    var sPJ  = buildSeg(v.prevJinfeng);
+    var sIC  = buildSeg(v.intraCenter);
+    var sIJ  = buildSeg(v.intraJinfeng);
+
+    // 段一：标题 + 真值 + 会商结论（会商部分结尾加句号）
+    var p1Text = dateCN+"辐照度预测情况："+dateCN+"实际辐照度峰值为"+truthStr+"，经会商，日前出口为"+sCDa.text+"，日内会商辐照度峰值调整为"+sCO.text+"。";
+    var p1Html = escapeHtml(dateCN+"辐照度预测情况：")+escapeHtml(dateCN+"实际辐照度峰值为"+truthStr+"，经会商，日前出口为")+sCDa.html+escapeHtml("，日内会商辐照度峰值调整为")+sCO.html+escapeHtml("。");
+
+    // 段二：服务中心、金风（结尾加句号）
+    var p2Text =
+      "服务中心日前预测为"+sPC.text+"，日内预测为"+sIC.text+"；"+
+      "金风日前预测为"+sPJ.text+"，日内预测为"+sIJ.text+"。";
+
+    var p2Html =
+      "服务中心日前预测为"+sPC.html+"，日内预测为"+sIC.html+"；"+
+      "金风日前预测为"+sPJ.html+"，日内预测为"+sIJ.html+"。";
+
+    lastText = p1Text + p2Text;
+    els.outBox.innerHTML = p1Html + p2Html;
+    els.copyBtn.disabled = false;
+  }
+
+  function render(){ updateDateLabels(); build(); }
+
+  // —— 复制 ——
+  function showToast(msg){
+    els.toast.textContent = msg;
+    els.toast.classList.add("show");
+    setTimeout(function(){ els.toast.classList.remove("show"); }, 1500);
+  }
+  els.copyBtn.addEventListener("click", function(){
+    if(!lastText) return;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(lastText).then(function(){ showToast("已复制"); }, function(){ fallbackCopy(); });
+    } else { fallbackCopy(); }
+  });
+  function fallbackCopy(){
+    var ta=document.createElement("textarea");
+    ta.value=lastText; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); showToast("已复制"); }catch(e){ showToast("复制失败，请长按选择"); }
+    document.body.removeChild(ta);
+  }
+
+  // —— 事件绑定 ——（composition 防护 + rAF 节流，避免输入时重排打断光标）
+  var composing = false;
+  var rafId = null;
+  function scheduleRender(){
+    if(rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(function(){ rafId = null; render(); });
+  }
+  ["prev-center","prev-jinfeng","intra-center","intra-jinfeng","consult-da","consult","truth"].forEach(function(id){
+    var el=document.getElementById(id);
+    el.addEventListener("compositionstart", function(){ composing = true; });
+    el.addEventListener("compositionend", function(){ composing = false; scheduleRender(); });
+    el.addEventListener("input", function(){ if(!composing) scheduleRender(); });
+  });
+  els.targetDate.addEventListener("change", scheduleRender);
+  els.targetDate.addEventListener("input", function(){ if(!composing) scheduleRender(); });
+
+  // —— 初始化 ——
+  (function init(){
+    var today = shanghaiNow();
+    els.targetDate.value = iso(today);
+    render();
+  })();
+})();
+</script>
+</body>
+</html>
