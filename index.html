@@ -227,10 +227,10 @@
     <div class="card-head">
       <span class="t">综合计算器</span>
       <span class="spacer"></span>
-      <span class="hint">权重：w=0.85 / 0.60</span>
+      <span class="hint">权重：w=0.85 / 0.75</span>
     </div>
     <div class="tabs">
-      <div class="tab active" data-epoch="intra">日内（w=0.60）</div>
+      <div class="tab active" data-epoch="intra">日内（w=0.75）</div>
       <div class="tab" data-epoch="prev">日前（w=0.85）</div>
     </div>
     <div class="grid">
@@ -439,7 +439,7 @@
   }
 
   /* ================= 综合计算器 ================= */
-  var CALC_W = { intra: 0.60, prev: 0.85 };
+  var CALC_W = { intra: 0.75, prev: 0.85 };
   var curEpoch = "intra";
   function bindTabs() {
     var tabs = document.querySelectorAll(".tab");
