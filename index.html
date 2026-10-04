@@ -106,6 +106,13 @@
   }
   .calc-out .num{font-size:26px;font-weight:800;color:#7DD3FC;display:block;margin:2px 0;}
   .calc-out .formula{font-size:11.5px;color:#9DB8D9;}
+  .badge-warn{font-size:10.5px;font-weight:700;color:#0B1220;background:#FCD34D;border-radius:20px;padding:2px 8px;vertical-align:4px;margin-left:2px;}
+  .badge-manual{font-size:10.5px;font-weight:700;color:#0B1220;background:#A5B4FC;border-radius:20px;padding:2px 8px;vertical-align:4px;margin-left:2px;}
+  .wrow{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11.5px;color:#9DB8D9;}
+  .wrow label{white-space:nowrap;}
+  .wrow input[type=range]{flex:1;min-width:80px;accent-color:#7DD3FC;height:20px;}
+  .wrow .wval{font-weight:800;color:#EAF2FB;min-width:34px;text-align:right;}
+  .btn.mini{font-size:11px;padding:3px 9px;border-radius:8px;}
   .calc-bar{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;}
 
   /* —— 脚注与toast —— */
@@ -227,11 +234,11 @@
     <div class="card-head">
       <span class="t">综合计算器</span>
       <span class="spacer"></span>
-      <span class="hint">权重：w=0.85 / 0.80</span>
+      <span class="hint">标准 0.85 / 0.80 · 低辐照自动切换</span>
     </div>
     <div class="tabs">
-      <div class="tab active" data-epoch="intra">日内（w=0.80）</div>
-      <div class="tab" data-epoch="prev">日前（w=0.85）</div>
+      <div class="tab active" data-epoch="intra">日内（标准 0.80）</div>
+      <div class="tab" data-epoch="prev">日前（标准 0.85）</div>
     </div>
     <div class="grid">
       <div class="cell">
@@ -247,9 +254,15 @@
       <span class="num">—</span>
       <span class="formula" id="clcFormula">输入值后自动综合（10 取整）</span>
     </div>
+    <div class="wrow" id="calc-wrow">
+      <label for="clc-w">手动锁定权重</label>
+      <input id="clc-w" type="range" min="0" max="100" step="5" value="80" />
+      <span class="wval" id="clcWVal">0.80</span>
+      <button class="btn btn-ghost mini" id="clcWReset">恢复自动</button>
+    </div>
     <div class="calc-bar">
       <button class="btn btn-ghost" id="clcCopy" style="border-color:rgba(255,255,255,.25);color:#EAF2FB;">复制结论</button>
-      <span class="status" style="color:#9DB8D9;">区间取中值 · 结果仅前端计算</span>
+      <span class="status" style="color:#9DB8D9;">区间取中值 · 前端计算</span>
     </div>
   </section>
 
@@ -440,7 +453,11 @@
 
   /* ================= 综合计算器 ================= */
   var CALC_W = { intra: 0.80, prev: 0.85 };
+  /* 低辐照分界（2026-10-04 样本外回测验证，30 样本 MAE 55.7→49.9）：
+     任一源 < 450 判低辐照工况 → 中心≥金风用 0.5，中心<金风用 0.2 */
+  var LOW_TH = 450, LOW_W_HI = 0.5, LOW_W_LO = 0.2;
   var curEpoch = "intra";
+  var wOverride = null;   // 手动锁权优先级最高
   function bindTabs() {
     var tabs = document.querySelectorAll(".tab");
     tabs.forEach(function (tb) {
@@ -448,31 +465,55 @@
         tabs.forEach(function (x) { x.classList.remove("active"); });
         tb.classList.add("active");
         curEpoch = tb.getAttribute("data-epoch");
+        wOverride = null;
+        syncWRow();
         renderCalc();
       });
     });
   }
+  /* 工况判定：返回 {w, mode, note} */
+  function decideW(c, j, epoch) {
+    var base = CALC_W[epoch];
+    if (wOverride !== null) return { w: wOverride, mode: "manual", note: "手动锁定" };
+    var mc = c ? mid(c) : null, mj = j ? mid(j) : null;
+    if (mc === null || mj === null) return { w: base, mode: "base", note: "单源，按标准权重" };
+    if (Math.min(mc, mj) < LOW_TH) {
+      if (mc >= mj) return { w: LOW_W_HI, mode: "low", note: "低辐照·中心更高 → 折中 " + LOW_W_HI };
+      return { w: LOW_W_LO, mode: "low", note: "低辐照·中心更低 → 偏金风 " + LOW_W_LO };
+    }
+    return { w: base, mode: "base", note: "标准权重" };
+  }
+  function syncWRow() {
+    var r = $("calc-wrow"); if (!r) return;
+    r.style.display = wOverride === null ? "none" : "";
+  }
   function renderCalc() {
     var c = parseVal(els.clcC.value), j = parseVal(els.clcJ.value);
     if (!c && !j) { els.clcOut.innerHTML = '<span class="num">—</span><span class="formula">输入服务中心和/或金风值</span>'; return; }
-    var w = CALC_W[curEpoch];
+    var d = decideW(c, j, curEpoch);
+    var w = d.w;
     var mc = mid(c) || 0, mj = mid(j) || 0;
     var e = w * mc + (1 - w) * mj;
     var out = Math.round(e / 10) * 10;
     var tag = curEpoch === "intra" ? "日内" : "日前";
-    els.clcOut.innerHTML = '<span class="num">' + out + ' W/m²</span>' +
-      '<span class="formula">' + tag + "：" + (c ? fmtValN(mc) : "—") + " ×" + w.toFixed(2) + " + " + (j ? fmtValN(mj) : "—") + " ×" + (1 - w).toFixed(2) + " = " + e.toFixed(1) + " → 取整10</span>";
+    var badge = d.mode === "low" ? '<span class="badge-warn">低辐照口径</span>' :
+                (d.mode === "manual" ? '<span class="badge-manual">手动</span>' : '');
+    els.clcOut.innerHTML = '<span class="num">' + out + ' W/m²</span> ' + badge +
+      '<span class="formula">' + tag + "：" + (c ? fmtValN(mc) : "—") + " ×" + w.toFixed(2) + " + " + (j ? fmtValN(mj) : "—") + " ×" + (1 - w).toFixed(2) + " = " + e.toFixed(1) + " → 取整10　·　" + d.note + "</span>";
   }
   var fmtValN = function (n) { return Math.round(n); };
 
   /* 复制结论 */
   function clcCopyText() {
     var c = parseVal($("clc-c").value), j = parseVal($("clc-j").value);
-    var w = CALC_W[curEpoch];
+    var d = decideW(c, j, curEpoch);
+    var w = d.w;
     var mc = mid(c) || 0, mj = mid(j) || 0;
     var e = w * mc + (1 - w) * mj;
     var out = Math.round(e / 10) * 10;
-    copyText("综合结论（" + (curEpoch === "intra" ? "日内" : "日前") + "）：" + out + " W/m²", "已复制结论");
+    var label = curEpoch === "intra" ? "日内" : "日前";
+    var tail = d.mode === "low" ? "（低辐照口径）" : (d.mode === "manual" ? "（手动权重）" : "");
+    copyText("综合结论（" + label + tail + "）：" + out + " W/m²", "已复制结论");
   }
 
   /* ================= 绑定 ================= */
@@ -510,6 +551,20 @@
     el.addEventListener("input", function () { if (!composing) schedule(); });
   });
   ["clc-c", "clc-j"].forEach(function (id) { $(id).addEventListener("input", renderCalc); });
+  /* 手动锁权 */
+  $("clc-w").addEventListener("input", function () {
+    wOverride = parseInt(this.value, 10) / 100;
+    $("clcWVal").textContent = wOverride.toFixed(2);
+    syncWRow();
+    renderCalc();
+  });
+  $("clcWReset").addEventListener("click", function () {
+    wOverride = null;
+    this.value = Math.round(CALC_W[curEpoch] * 100);
+    $("clcWVal").textContent = CALC_W[curEpoch].toFixed(2);
+    syncWRow();
+    renderCalc();
+  });
   els.targetDate.addEventListener("change", schedule);
   els.targetDate.addEventListener("input", function () { if (!composing) schedule(); });
   els.copyBtn.addEventListener("click", function () { if (lastText) copyText(lastText); });
