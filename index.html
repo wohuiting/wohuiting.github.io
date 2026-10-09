@@ -45,14 +45,7 @@
   .card-head .spacer{flex:1;}
   .card-head .hint{font-size:11px;color:var(--faint);font-weight:400;}
 
-  /* —— 粘贴 —— */
-  textarea{
-    width:100%;min-height:88px;font-size:14px;line-height:1.65;color:var(--ink);
-    border:1px solid var(--line2);border-radius:10px;padding:10px 12px;resize:vertical;
-    background:#FCFCFD;outline:none;transition:border-color .15s;font-family:var(--sans);
-  }
-  textarea:focus{border-color:var(--accent);}
-  .paste-bar{display:flex;align-items:center;gap:10px;margin-top:9px;flex-wrap:wrap;}
+  /* —— 粘贴 ——（已移除 2026-10-09：粘贴解析功能下线，仅残留 textarea 基础样式） */
   .btn{display:inline-flex;align-items:center;gap:6px;border:none;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:600;padding:8px 16px;transition:opacity .15s,background .15s;-webkit-user-select:none;user-select:none;}
   .btn-primary{background:var(--accent);color:#fff;}
   .btn-primary:hover{opacity:.9;}
@@ -138,25 +131,10 @@
     </div>
   </header>
 
-  <!-- 1 粘贴 -->
+  <!-- 1 数据 -->
   <section class="card">
     <div class="card-head">
       <span class="step">1</span>
-      <span class="t">粘贴会商消息</span>
-      <span class="spacer"></span>
-      <span class="hint">微信文字直接粘</span>
-    </div>
-    <textarea id="pasteInput" rows="3" placeholder="粘贴消息文字，例如：&#10;9月10日 日内订正 服务中心_600-650_ 金风_665_；日前 服务中心_600_ 金风_548_；真值：632&#10;或官方日报全文……"></textarea>
-    <div class="paste-bar">
-      <button class="btn btn-primary" id="pasteBtn">自动解析</button>
-      <span class="status" id="pasteHint">支持：真值 / 日前 / 日内 / 服务中心 / 金风 / 区间 / 偏大偏小</span>
-    </div>
-  </section>
-
-  <!-- 2 数据 -->
-  <section class="card">
-    <div class="card-head">
-      <span class="step">2</span>
       <span class="t">预测数据</span>
       <span class="spacer"></span>
       <span class="hint">可直接手改</span>
@@ -218,15 +196,15 @@
     </div>
   </section>
 
-  <!-- 3 报告 -->
+  <!-- 2 报告 -->
   <section class="card">
     <div class="card-head">
-      <span class="step">3</span>
+      <span class="step">2</span>
       <span class="t">会商报告</span>
       <span class="spacer"></span>
       <button class="btn btn-ghost" id="copyBtn" disabled>复制报告</button>
     </div>
-    <div class="report" id="outBox">填写或粘贴数据后自动生成。</div>
+    <div class="report" id="outBox">填写数据后自动生成。</div>
   </section>
 
   <!-- 综合计算器 -->
@@ -331,52 +309,9 @@
     return { txt: valTxt + "（" + d.t + "）", html: esc(valTxt) + "（<span class=\"" + d.c + "\">" + esc(d.t) + "</span>）" };
   }
 
-  /* ================= 粘贴解析 ================= */
-  function parseMsg(txt) {
-    var t = String(txt || "").replace(/[_＿\u3000]/g, "").replace(/[～~]/g, "-").replace(/[\s，,；;]+/g, " ");
-    var res = {};
-    var isFormal = /预测为|订正为|调整为/.test(t);
-    var m = t.match(/(?:真值|实际辐照度峰值|辐照度峰值为|真值为)[^0-9]{0,6}?(\d{2,4}(?:-\d{2,4})?)/);
-    if (m) res.truth = m[1];
-    [{ k: "日前", pf: "prev" }, { k: "日内", pf: "intra" }].forEach(function (o) {
-      var ki = t.indexOf(o.k);
-      if (ki < 0) return;
-      var seg = t.slice(ki + o.k.length, ki + o.k.length + 86);
-      var ci = seg.indexOf("服务中心"), ji = seg.indexOf("金风");
-      function numAfter(pos) { var s = seg.slice(pos); var mm = s.match(/^[^0-9]{0,8}?(\d{2,4}(?:-\d{2,4})?)/); return mm ? mm[1] : null; }
-      if (ci >= 0 && ji >= 0) {
-        var a = ci < ji ? [numAfter(ci), "Center"] : [numAfter(ji), "Jinfeng"];
-        var b = ci < ji ? [numAfter(ji), "Jinfeng"] : [numAfter(ci), "Center"];
-        if (a[0] != null) res[o.pf + a[1]] = a[0];
-        if (b[0] != null) res[o.pf + b[1]] = b[0];
-      } else if (ci >= 0) {
-        var v1 = numAfter(ci); if (v1 != null) res[o.pf + "Center"] = v1;
-      } else if (ji >= 0) {
-        var v2 = numAfter(ji); if (v2 != null) res[o.pf + "Jinfeng"] = v2;
-      }
-    });
-    function srcGrab(label, slot) {
-      var ix = t.indexOf(label);
-      if (ix < 0) return;
-      var win = t.slice(ix, ix + 96);
-      var oi = win.indexOf(label === "服务中心" ? "金风" : "服务中心");
-      if (oi > -1) win = win.slice(0, oi);
-      var re2 = new RegExp("(日前|日内)[^0-9]{0,8}?(\\d{2,4}(?:-\\d{2,4})?)", "g");
-      var mm;
-      while ((mm = re2.exec(win))) {
-        var kk = mm[1] === "日前" ? "prev" : "intra";
-        if (isFormal || !res[kk + slot]) res[kk + slot] = mm[2];
-      }
-    }
-    srcGrab("服务中心", "Center");
-    srcGrab("金风", "Jinfeng");
-    return res;
-  }
-
   /* ================= 全流程 ================= */
   var els = {
     targetDate: $("targetDate"), prevDate: $("prevDate"), intraDate: $("intraDate"), truthDate: $("truthDate"),
-    pasteInput: $("pasteInput"), pasteBtn: $("pasteBtn"), pasteStatus: $("pasteHint"),
     prevCenter: $("prev-center"), prevJinfeng: $("prev-jinfeng"),
     intraCenter: $("intra-center"), intraJinfeng: $("intra-jinfeng"),
     consultDa: $("consult-da"), consult: $("consult"), truth: $("truth"),
@@ -517,31 +452,6 @@
   }
 
   /* ================= 绑定 ================= */
-  function applyParsed(res) {
-    var map = { prevCenter: "prev-center", prevJinfeng: "prev-jinfeng", intraCenter: "intra-center", intraJinfeng: "intra-jinfeng", truth: "truth" };
-    var filled = [];
-    Object.keys(map).forEach(function (k) { if (res[k]) { $(map[k]).value = res[k]; filled.push(k); } });
-    return filled;
-  }
-  function doParse() {
-    var txt = els.pasteInput.value;
-    if (!txt.trim()) { els.pasteStatus.innerHTML = '<span class="err">请先粘贴消息文字</span>'; return; }
-    var res = parseMsg(txt);
-    var filled = applyParsed(res);
-    var parts = [];
-    if (res.truth) parts.push("真值" + res.truth);
-    if (res.prevCenter) parts.push("日前服" + res.prevCenter);
-    if (res.prevJinfeng) parts.push("日前金" + res.prevJinfeng);
-    if (res.intraCenter) parts.push("日内服" + res.intraCenter);
-    if (res.intraJinfeng) parts.push("日内金" + res.intraJinfeng);
-    if (parts.length) {
-      els.pasteStatus.innerHTML = '<span class="ok">✓ 已识别 ' + parts.length + ' 项 → ' + parts.join("｜") + '</span>';
-      build();
-    } else {
-      els.pasteStatus.innerHTML = '<span class="err">未识别到数值。参考：「日前：服务中心 600 金风 548」或「真值：632」</span>';
-    }
-  }
-
   var composing = false, raf = null;
   function schedule() { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(function () { raf = null; build(); }); }
   ["prev-center", "prev-jinfeng", "intra-center", "intra-jinfeng", "consult-da", "consult", "truth"].forEach(function (id) {
@@ -568,7 +478,6 @@
   els.targetDate.addEventListener("change", schedule);
   els.targetDate.addEventListener("input", function () { if (!composing) schedule(); });
   els.copyBtn.addEventListener("click", function () { if (lastText) copyText(lastText); });
-  els.pasteBtn.addEventListener("click", doParse);
   els.clcCopy.addEventListener("click", clcCopyText);
 
   /* 日期标签 */
