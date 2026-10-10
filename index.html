@@ -230,7 +230,7 @@
     </div>
     <div class="calc-out" id="clcOut">
       <span class="num">—</span>
-      <span class="formula" id="clcFormula">输入值后自动综合（10 取整）</span>
+      <span class="formula" id="clcFormula">输入值后自动综合（5 取整）</span>
     </div>
     <div class="wrow" id="calc-wrow">
       <label for="clc-w">手动锁定权重</label>
@@ -429,12 +429,12 @@
     var w = d.w;
     var mc = mid(c) || 0, mj = mid(j) || 0;
     var e = w * mc + (1 - w) * mj;
-    var out = Math.round(e / 10) * 10;
+    var out = Math.round(e / 5) * 5;
     var tag = curEpoch === "intra" ? "日内" : "日前";
     var badge = d.mode === "low" ? '<span class="badge-warn">低辐照口径</span>' :
                 (d.mode === "manual" ? '<span class="badge-manual">手动</span>' : '');
     els.clcOut.innerHTML = '<span class="num">' + out + ' W/m²</span> ' + badge +
-      '<span class="formula">' + tag + "：" + (c ? fmtValN(mc) : "—") + " ×" + w.toFixed(2) + " + " + (j ? fmtValN(mj) : "—") + " ×" + (1 - w).toFixed(2) + " = " + e.toFixed(1) + " → 取整10　·　" + d.note + "</span>";
+      '<span class="formula">' + tag + "：" + (c ? fmtValN(mc) : "—") + " ×" + w.toFixed(2) + " + " + (j ? fmtValN(mj) : "—") + " ×" + (1 - w).toFixed(2) + " = " + e.toFixed(1) + " → 取整5　·　" + d.note + "</span>";
   }
   var fmtValN = function (n) { return Math.round(n); };
 
@@ -445,7 +445,7 @@
     var w = d.w;
     var mc = mid(c) || 0, mj = mid(j) || 0;
     var e = w * mc + (1 - w) * mj;
-    var out = Math.round(e / 10) * 10;
+    var out = Math.round(e / 5) * 5;
     var label = curEpoch === "intra" ? "日内" : "日前";
     var tail = d.mode === "low" ? "（低辐照口径）" : (d.mode === "manual" ? "（手动权重）" : "");
     copyText("综合结论（" + label + tail + "）：" + out + " W/m²", "已复制结论");
